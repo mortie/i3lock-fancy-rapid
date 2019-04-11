@@ -147,13 +147,17 @@ int main(int argc, char *argv[])
         char geometry[32];
         snprintf(geometry, sizeof(geometry), "%ix%i", width, height);
 
-        char *new_argv[6];
+        int argskip = 3;
+        char *new_argv[6 + (argc - argskip)];
         new_argv[0] = "i3lock";
         new_argv[1] = "-i";
         new_argv[2] = "/dev/stdin";
         new_argv[3] = "-r";
         new_argv[4] = geometry;
-        new_argv[5] = NULL;
+        int idx = 5;
+        for (int i = 0; i < argc - argskip; ++i)
+            new_argv[idx++] = argv[i + argskip];
+        new_argv[idx++] = NULL;
         execvp(new_argv[0], new_argv);
         exit(EXIT_FAILURE);
     }
