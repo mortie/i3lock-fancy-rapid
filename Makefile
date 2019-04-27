@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-c -O3 -fopenmp -Wall -Wextra
+CFLAGS=-c -O3 -march=native -ffast-math -fopenmp -Wall -Wextra
 LDFLAGS=-lX11 -fopenmp
 
 i3lock-fancy-rapid: i3lock-fancy-rapid.o

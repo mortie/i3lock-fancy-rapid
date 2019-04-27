@@ -119,6 +119,8 @@ int main(int argc, char *argv[])
     uint32_t *preblur = malloc(height * width * sizeof(*preblur));
     XImage *image = XGetImage(display, root, 0, 0, width, height, AllPlanes,
                               ZPixmap);
+
+#pragma omp parallel for
     for (int i = 0; i < height; ++i) {
         int iwidth = i * width;
         for (int j = 0; j < width; ++j) {
