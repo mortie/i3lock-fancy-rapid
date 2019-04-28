@@ -114,10 +114,10 @@ int main(int argc, char *argv[])
     Window root = XDefaultRootWindow(display);
     XWindowAttributes gwa;
     XGetWindowAttributes(display, root, &gwa);
-    int height = gwa.height;
-    int width = gwa.width;
+    int height = gwa.height / SCALE;
+    int width = gwa.width / SCALE;
     uint32_t *preblur = malloc(height * width * sizeof(*preblur));
-    XImage *image = XGetImage(display, root, 0, 0, width, height, AllPlanes,
+    XImage *image = XGetImage(display, root, 0, 0, gwa.width, gwa.height, AllPlanes,
                               ZPixmap);
 
 #pragma omp parallel for
@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
         int iwidth = i * width;
         for (int j = 0; j < width; ++j) {
             int index = iwidth + j;
-            unsigned long pixel = XGetPixel(image, j, i);
+            unsigned long pixel = XGetPixel(image, j * SCALE, i * SCALE);
             preblur[index] = pixel & 0x00ffffff;
         }
     }
@@ -137,17 +137,31 @@ int main(int argc, char *argv[])
     box_blur(postblur, preblur, height, width, atoi(argv[1]), atoi(argv[2]));
     free(preblur);
 
+    // Upscale
+    uint32_t *upscaled;
+    if (SCALE == 1) {
+        upscaled = postblur;
+    } else {
+        upscaled = malloc(height * SCALE * width * SCALE * sizeof(*upscaled));
+#pragma omp parallel for
+        for (int i = 0; i < height * SCALE; ++i) {
+            for (int j = 0; j < width * SCALE; ++j) {
+                upscaled[i * width * SCALE + j] = postblur[(i / SCALE) * width + (j / SCALE)];
+            }
+        }
+    }
+
     int fds[2];
     pipe(fds);
     if (fork()) {
-        write(fds[1], postblur, height * width * sizeof(*postblur));
+        write(fds[1], upscaled, height * SCALE * width * SCALE * sizeof(*upscaled));
         int status;
         wait(&status);
         exit(WEXITSTATUS(status));
     } else {
         dup2(fds[0], STDIN_FILENO);
         char geometry[32];
-        snprintf(geometry, sizeof(geometry), "%ix%i", width, height);
+        snprintf(geometry, sizeof(geometry), "%ix%i", width * SCALE, height * SCALE);
 
         int argskip = 3;
         char *new_argv[6 + (argc - argskip)];
