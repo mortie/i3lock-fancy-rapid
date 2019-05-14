@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
     } else {
         dup2(fds[0], STDIN_FILENO);
         char geometry[32];
-        snprintf(geometry, sizeof(geometry), "%ix%i", width * SCALE, height * SCALE);
+        snprintf(geometry, sizeof(geometry), "%ix%i:native", width * SCALE, height * SCALE);
 
         int argskip = 3;
         char *new_argv[6 + (argc - argskip)];
