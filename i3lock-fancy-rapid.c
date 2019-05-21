@@ -166,9 +166,9 @@ int main(int argc, char *argv[])
         int argskip = 3;
         char *new_argv[6 + (argc - argskip)];
         new_argv[0] = "i3lock";
-        new_argv[1] = "-i";
+        new_argv[1] = "--image";
         new_argv[2] = "/dev/stdin";
-        new_argv[3] = "-r";
+        new_argv[3] = "--raw";
         new_argv[4] = geometry;
         int idx = 5;
         for (int i = 0; i < argc - argskip; ++i)
