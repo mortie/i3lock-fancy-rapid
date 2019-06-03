@@ -5,8 +5,10 @@
 #include <malloc.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/shm.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/extensions/XShm.h>
 #include <omp.h>
 
 void box_blur_h(uint32_t *dest, uint32_t *src, int height, int width,
@@ -116,9 +118,27 @@ int main(int argc, char *argv[])
     XGetWindowAttributes(display, root, &gwa);
     int height = gwa.height / SCALE;
     int width = gwa.width / SCALE;
+
     uint32_t *preblur = malloc(height * width * sizeof(*preblur));
-    XImage *image = XGetImage(display, root, 0, 0, gwa.width, gwa.height, AllPlanes,
-                              ZPixmap);
+
+    // Create shm image
+    XShmSegmentInfo shminfo;
+    XImage *image = XShmCreateImage(
+            display, DefaultVisual(display, DefaultScreen(display)),
+            32, ZPixmap, NULL, &shminfo, gwa.width, gwa.height);
+
+    // Attach shm image
+    shminfo.shmid = shmget(IPC_PRIVATE,
+            image->bytes_per_line * image->height,
+            IPC_CREAT|0777);
+    shminfo.shmaddr = image->data = shmat(shminfo.shmid, 0, 0);
+    shminfo.readOnly = False;
+    XShmAttach(display, &shminfo);
+
+    if (!XShmGetImage(display, root, image, 0, 0, AllPlanes)) {
+        fprintf(stderr, "Failed to get image.\n");
+        exit(EXIT_FAILURE);
+    }
 
 #pragma omp parallel for
     for (int i = 0; i < height; ++i) {
@@ -129,6 +149,7 @@ int main(int argc, char *argv[])
             preblur[index] = pixel & 0x00ffffff;
         }
     }
+    XShmDetach(display, &shminfo);
     XDestroyImage(image);
     XDestroyWindow(display, root);
     XCloseDisplay(display);
